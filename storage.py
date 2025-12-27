@@ -159,8 +159,8 @@ class Node:
         for peer, block_id in shuffled(self.remote_blocks_held.items()):
             # if the block is not present locally and the peer is online and not downloading anything currently, then
             # schedule the restore from self to peer of block_id
-            if ... and ... is None and not peer.local_blocks[block_id]:
-                ...
+            if peer.online and peer.current_download is None and not peer.local_blocks[block_id]:
+                sim.schedule_transfer(self,peer,block_id,restore=True)
                 return  # we have found our upload, we stop
 
         # try to back up a block on a locally held remote node
@@ -172,9 +172,9 @@ class Node:
         for peer in shuffled(sim.nodes):
             # if the peer is not self, is online, is not among the remote owners, has enough space and is not
             # downloading anything currently, schedule the backup of block_id from self to peer
-            if (peer is not self and ... and peer not in ... and peer.current_download is None
-                    and peer.free_space >= ...):
-                ...
+            if (peer is not self and peer.online and peer not in remote_owners and peer.current_download is None
+                    and peer.free_space >= self.block_size):
+                sim.schedule_transfer(self,peer,block_id=block_id,restore=True)
                 return
 
     def schedule_next_download(self, sim: Backup):
