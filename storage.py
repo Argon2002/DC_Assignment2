@@ -34,11 +34,15 @@ class Backup(Simulation):
     """Backup simulation.
     """
 
+
     # type annotations for `Node` are strings here to allow a forward declaration:
     # https://stackoverflow.com/questions/36193540/self-reference-or-forward-reference-of-type-annotations-in-python
     def __init__(self, nodes: List['Node']):
         super().__init__()  # call the __init__ method of parent class
         self.nodes = nodes
+        
+        # flag for checking data lost
+        self.data_loss_happened = False
 
         # we add to the event queue the first event of each node going online and of failing
         for node in nodes:
@@ -74,6 +78,26 @@ class Backup(Simulation):
 
         logging.info(f'{format_timespan(self.t)}: {msg}')
 
+    def check_data_loss(self):
+        """This function returns (lost_node, available_blocks) if any node has lost its data, else returns (None, None)"""
+        
+        for node in self.nodes:
+            if node.k <= 0:
+                continue # e.g., servers in client_server.cfg     نودهایی که داده ندارن
+            
+            # number of available blocks
+            available_blocks_count = 0
+            for block_id in range(node.n):
+                if(node.local_blocks[block_id] or node.backed_up_blocks[block_id] is not None):
+                    available_blocks_count += 1
+                
+            # if node has data loss  اگر نود دیتا لاست داشت
+            if available_blocks_count < node.k:
+                return True, node, available_blocks_count                    
+
+        return False, None, None
+        
+        
 
 @dataclass(eq=False)  # auto initialization from parameters below (won't consider two nodes with same state as equal)
 class Node:
@@ -308,6 +332,16 @@ class Fail(Disconnection):
         # schedule the next online and recover events
         recover_time = exp_rv(node.average_recover_time)
         sim.schedule(recover_time, Recover(node))
+        
+        # checking the lost data
+        lost, node, available_blocks_count =  sim.check_data_loss()
+        if(lost):
+            sim.data_loss_happened = True
+            sim.log_info(
+                f"Data lost happened for node {node}: "
+                f"available blocks = {available_blocks_count}, k = {node.k}"
+            )
+        
 
 
 @dataclass
@@ -394,6 +428,10 @@ def main():
         nodes.extend(Node(f"{node_class}-{i}", *cfg) for i in range(class_config.getint('number')))
     sim = Backup(nodes)
     sim.run(parse_timespan(args.max_t))
+    if sim.data_loss_happened:
+        print("Final result: DATA LOST OCCURRED")
+    else:
+        print("Final resutl: No Data Lost Occurred. whowhoooooo!!!")    
     sim.log_info(f"Simulation over")
 
 
