@@ -235,10 +235,11 @@ class Online(NodeEvent):
             return
         node.online = True
         # schedule next upload and download
-        ...
-        ...
+        node.schedule_next_upload(sim)
+        node.schedule_next_download(sim)
+        
         # schedule the next offline event
-        ...
+        sim.schedule(exp_rv(node.average_uptime), Offline(node))
 
 
 class Recover(Online):
