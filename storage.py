@@ -174,7 +174,7 @@ class Node:
             # downloading anything currently, schedule the backup of block_id from self to peer
             if (peer is not self and peer.online and peer not in remote_owners and peer.current_download is None
                     and peer.free_space >= self.block_size):
-                sim.schedule_transfer(self,peer,block_id=block_id,restore=True)
+                sim.schedule_transfer(self,peer,block_id=block_id,restore=False)
                 return
 
     def schedule_next_download(self, sim: Backup):
