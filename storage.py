@@ -189,17 +189,17 @@ class Node:
 
         # first find if we have a missing block to restore
         for block_id, (held_locally, peer) in shuffled(enumerate(zip(self.local_blocks, self.backed_up_blocks))):
-            if not ... and peer is not None and ... and ... is None:
-                ...
+            if not held_locally and peer is not None and peer.online and peer.current_upload is None:
+                sim.schedule_transfer(peer,self,block_id=block_id,restore=True)
                 return  # we are done in this case
 
-        # try to back up a block for a remote node
+        # try to back up a block for a remote node(helping other nodes)
         for peer in shuffled(sim.nodes):
-            if (peer is not self and ... and ... is None and peer not in ...
-                    and self.free_space >= ...):
+            if (peer is not self and peer.online and peer.current_upload is None and peer not in self.remote_blocks_held
+                    and self.free_space >= peer.block_size):
                 block_id = peer.find_block_to_back_up()
                 if block_id is not None:
-                    ...
+                    sim.schedule_transfer(peer,self,block_id,False)
                     return
 
     def __hash__(self):
