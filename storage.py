@@ -29,6 +29,15 @@ def shuffled(iterable):
     shuffle(items)
     return items
 
+# calculating noise for upload and download 
+def apply_noise(base:float, noise:float) -> float:
+    if noise <= 0:
+        return base
+    
+    mult = random.uniform(1.0 - noise, 1.0 + noise)
+    # we use 1e-9 for avoiding divide to 0
+    return max(base * mult, 1e-9)
+
 
 class Backup(Simulation):
     """Backup simulation.
@@ -61,8 +70,16 @@ class Backup(Simulation):
         assert uploader.current_upload is None
         assert downloader.current_download is None
 
-        speed = min(uploader.upload_speed, downloader.download_speed)  # we take the slowest between the two
+        noised_download = apply_noise(downloader.download_speed, downloader.download_noise)
+        noised_upload = apply_noise(uploader.upload_speed, uploader.upload_noise)
+        
+        speed = min(noised_upload, noised_download)  # we take the slowest between the two
         delay = block_size / speed
+        
+        if not hasattr(self, "delays"):
+            self.delays = []
+        self.delays.append(delay)    
+        
         if restore:
             event = BlockRestoreComplete(uploader, downloader, block_id)
         else:
@@ -96,6 +113,10 @@ class Backup(Simulation):
                 return True, node, available_blocks_count                    
 
         return False, None, None
+    
+   
+    
+     
         
         
 
@@ -120,6 +141,11 @@ class Node:
 
     upload_speed: float  # node's upload speed, in bytes per second
     download_speed: float  # download speed
+    
+    # For Extention
+    # For example 0.2 means +- 20% noise 
+    upload_noise: float
+    download_noise: float   
 
     average_uptime: float  # average time spent online
     average_downtime: float  # average time spent offline
@@ -369,7 +395,9 @@ class TransferComplete(Event):
         for node in [uploader, downloader]:
             sim.log_info(f"{node}: {sum(node.local_blocks)} local blocks, "
                          f"{sum(peer is not None for peer in node.backed_up_blocks)} backed up blocks, "
-                         f"{len(node.remote_blocks_held)} remote blocks held")
+                         f"{len(node.remote_blocks_held)} remote blocks held, "
+                         f"download speed: {apply_noise(downloader.download_speed, downloader.download_noise)}, "
+                         f"upload speed: {apply_noise(uploader.upload_speed, uploader.upload_noise)}")
 
     def update_block_state(self):
         """Needs to be specified by the subclasses, `BackupComplete` and `DownloadComplete`."""
@@ -412,9 +440,14 @@ def main():
         ('n', int), ('k', int),
         ('data_size', parse_size), ('storage_size', parse_size),
         ('upload_speed', parse_size), ('download_speed', parse_size),
+        
+        ('upload_noise', float),
+        ('download_noise', float),
+        
         ('average_uptime', parse_timespan), ('average_downtime', parse_timespan),
         ('average_lifetime', parse_timespan), ('average_recover_time', parse_timespan),
         ('arrival_time', parse_timespan)
+        
     ]
 
     config = configparser.ConfigParser()
@@ -423,7 +456,7 @@ def main():
     for node_class in config.sections():
         class_config = config[node_class]
         # list comprehension: https://docs.python.org/3/tutorial/datastructures.html#list-comprehensions
-        cfg = [parse(class_config[name]) for name, parse in parsing_functions]
+        cfg = [parse(class_config.get(name, fallback = "0")) for name, parse in parsing_functions]
         # the `callable(p1, p2, *args)` idiom is equivalent to `callable(p1, p2, args[0], args[1], ...)
         nodes.extend(Node(f"{node_class}-{i}", *cfg) for i in range(class_config.getint('number')))
     sim = Backup(nodes)
@@ -431,7 +464,13 @@ def main():
     if sim.data_loss_happened:
         print("Final result: DATA LOST OCCURRED")
     else:
-        print("Final resutl: No Data Lost Occurred. whowhoooooo!!!")    
+        print("FINAL RESULT: NO DATA LOSS!!!")    
+    print("===============================")
+    if hasattr(sim, "delays") and sim.delays:
+        print("Transfers:", len(sim.delays))
+        print("Avg delay (s):", sum(sim.delays) / len(sim.delays))
+        print("Max delay (s):", max(sim.delays))
+    print("===============================")    
     sim.log_info(f"Simulation over")
 
 
