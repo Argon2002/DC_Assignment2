@@ -50,6 +50,8 @@ class Backup(Simulation):
         super().__init__()  # call the __init__ method of parent class
         self.nodes = nodes
         
+        self.delays = []
+        
         # flag for checking data lost
         self.data_loss_happened = False
 
@@ -76,8 +78,6 @@ class Backup(Simulation):
         speed = min(noised_upload, noised_download)  # we take the slowest between the two
         delay = block_size / speed
         
-        if not hasattr(self, "delays"):
-            self.delays = []
         self.delays.append(delay)    
         
         if restore:
