@@ -72,10 +72,10 @@ class Backup(Simulation):
         assert uploader.current_upload is None
         assert downloader.current_download is None
 
-        noised_download = apply_noise(downloader.download_speed, downloader.download_noise)
-        noised_upload = apply_noise(uploader.upload_speed, uploader.upload_noise)
+        noised_download_speed = apply_noise(downloader.download_speed, downloader.download_noise)
+        noised_upload_speed = apply_noise(uploader.upload_speed, uploader.upload_noise)
         
-        speed = min(noised_upload, noised_download)  # we take the slowest between the two
+        speed = min(noised_upload_speed, noised_download_speed)  # we take the slowest between the two
         delay = block_size / speed
         
         self.delays.append(delay)    
@@ -395,9 +395,7 @@ class TransferComplete(Event):
         for node in [uploader, downloader]:
             sim.log_info(f"{node}: {sum(node.local_blocks)} local blocks, "
                          f"{sum(peer is not None for peer in node.backed_up_blocks)} backed up blocks, "
-                         f"{len(node.remote_blocks_held)} remote blocks held, "
-                         f"download speed: {apply_noise(downloader.download_speed, downloader.download_noise)}, "
-                         f"upload speed: {apply_noise(uploader.upload_speed, uploader.upload_noise)}")
+                         f"{len(node.remote_blocks_held)} remote blocks held, ")
 
     def update_block_state(self):
         """Needs to be specified by the subclasses, `BackupComplete` and `DownloadComplete`."""
